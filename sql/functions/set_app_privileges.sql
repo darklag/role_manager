@@ -1,5 +1,9 @@
 /*
- * Assign default privileges to application roles
+ * Assign default privileges to application roles.
+ * NOTE: This function assumes the application roles will be getting blanket permissions on all objects in the
+ *      database that it is being run on. If the application roles only need permissions on specific objects
+ *      in the database, DO NOT use this function and just do manual GRANT commands for whatever is needed.
+
  * p_owner - by setting to FALSE, allows skipping of changing existing database objects' ownership
  *
  * Owner role - all object in database are changed to being owned by this role
@@ -12,14 +16,17 @@
 
 */
 
-CREATE FUNCTION set_app_privileges (p_appname text, p_owner boolean DEFAULT true, p_debug boolean DEFAULT false) RETURNS void
+CREATE FUNCTION set_app_privileges (p_appname text,  p_owner boolean DEFAULT true, p_debug boolean DEFAULT false) RETURNS void
     LANGUAGE plpgsql
     AS $$
 DECLARE
 
 v_dbname            text;
+v_app_exists        int;
 v_app_role          text;
+v_owner_exists      int;
 v_owner_role        text;
+v_readonly_exists   int;
 v_readonly_role     text;
 v_row               record;
 v_sql               text;
@@ -30,44 +37,64 @@ v_owner_role := p_appname || '_owner';
 v_app_role := p_appname || '_app';
 v_readonly_role := p_appname || '_readonly';
 
+SELECT count(*) INTO v_app_exists FROM pg_roles WHERE rolname = v_app_role;
+SELECT count(*) INTO v_readonly_exists FROM pg_roles WHERE rolname = v_readonly_role;
+SELECT count(*) INTO v_owner_exists FROM pg_roles WHERE rolname = v_owner_role;
+
 FOR v_row IN 
     SELECT nspname FROM pg_catalog.pg_namespace WHERE nspname NOT IN ('pg_catalog', 'information_schema', 'schema_evolution_manager', 'setup_postgresql')
 LOOP
-    v_sql := 'GRANT USAGE ON SCHEMA '||v_row.nspname||' TO '||v_app_role||','||v_readonly_role;
-    IF p_debug THEN
-        RAISE NOTICE 'command: %', v_sql;
-    END IF;
-    EXECUTE v_sql;
 
-    v_sql := 'GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON ALL TABLES IN SCHEMA '||v_row.nspname||' TO '||v_app_role;
-    IF p_debug THEN
-        RAISE NOTICE 'command: %', v_sql;
-    END IF;
-    EXECUTE v_sql;
+    IF v_app_exists > 0 THEN
+        v_sql := 'GRANT USAGE ON SCHEMA '||v_row.nspname||' TO '||v_app_role;
+        IF p_debug THEN
+            RAISE NOTICE 'command: %', v_sql;
+        END IF;
+        EXECUTE v_sql;
 
-    v_sql := 'GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA '||v_row.nspname||' TO '||v_app_role;
-    IF p_debug THEN
-        RAISE NOTICE 'command: %', v_sql;
-    END IF;
-    EXECUTE v_sql;
+        v_sql := 'GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON ALL TABLES IN SCHEMA '||v_row.nspname||' TO '||v_app_role;
+        IF p_debug THEN
+            RAISE NOTICE 'command: %', v_sql;
+        END IF;
+        EXECUTE v_sql;
 
-    v_sql := 'GRANT ALL ON ALL SEQUENCES IN SCHEMA '||v_row.nspname||' TO '||v_app_role;
-    IF p_debug THEN
-        RAISE NOTICE 'command: %', v_sql;
-    END IF;
-    EXECUTE v_sql;
+        v_sql := 'GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA '||v_row.nspname||' TO '||v_app_role;
+        IF p_debug THEN
+            RAISE NOTICE 'command: %', v_sql;
+        END IF;
+        EXECUTE v_sql;
 
-    v_sql := 'GRANT SELECT ON ALL TABLES IN SCHEMA '||v_row.nspname||' TO '||v_readonly_role;
-    IF p_debug THEN
-        RAISE NOTICE 'command: %', v_sql;
+        v_sql := 'GRANT ALL ON ALL SEQUENCES IN SCHEMA '||v_row.nspname||' TO '||v_app_role;
+        IF p_debug THEN
+            RAISE NOTICE 'command: %', v_sql;
+        END IF;
+        EXECUTE v_sql;
     END IF;
-    EXECUTE v_sql;
+
+    IF v_readonly_exists > 0 THEN
+        v_sql := 'GRANT USAGE ON SCHEMA '||v_row.nspname||' TO '||v_readonly_role;
+        IF p_debug THEN
+            RAISE NOTICE 'command: %', v_sql;
+        END IF;
+        EXECUTE v_sql;
+
+        v_sql := 'GRANT SELECT ON ALL TABLES IN SCHEMA '||v_row.nspname||' TO '||v_readonly_role;
+        IF p_debug THEN
+            RAISE NOTICE 'command: %', v_sql;
+        END IF;
+        EXECUTE v_sql;
+    END IF;
+
 END LOOP;
 
 IF p_owner THEN
+    IF v_owner_exists = 0 THEN
+        RAISE EXCEPTION 'Change ownership option set to TRUE but owner role % does not exist', v_owner_role;
+    END IF;
+
     -- Set database ownership
     v_dbname := current_database();
-    v_sql := 'ALTER DATABASE '||v_dbname||' OWNER TO '||v_owner_role;
+    v_sql := 'ALTER DATABASE '||quote_ident(v_dbname)||' OWNER TO '||v_owner_role;
     IF p_debug THEN
         RAISE NOTICE 'command: %', v_sql;
     END IF; EXECUTE v_sql;
@@ -77,7 +104,7 @@ IF p_owner THEN
         SELECT nspname AS name FROM pg_catalog.pg_namespace 
         WHERE nspname NOT IN ('pg_catalog', 'information_schema')
     LOOP
-        v_sql := 'ALTER SCHEMA '||v_row.name||' OWNER TO '||v_owner_role;
+        v_sql := 'ALTER SCHEMA '||quote_ident(v_row.name)||' OWNER TO '||v_owner_role;
         IF p_debug THEN
             RAISE NOTICE 'command: %', v_sql;
         END IF; EXECUTE v_sql;
@@ -85,9 +112,9 @@ IF p_owner THEN
 
     -- Set table ownership
     FOR v_row IN
-        SELECT schemaname||'.'||tablename AS name FROM pg_tables WHERE schemaname NOT IN ('pg_catalog', 'information_schema')
+        SELECT schemaname, tablename AS name FROM pg_tables WHERE schemaname NOT IN ('pg_catalog', 'information_schema')
     LOOP
-        v_sql := 'ALTER TABLE '||v_row.name||' OWNER TO '||v_owner_role;
+        v_sql := 'ALTER TABLE '||quote_ident(v_row.schemaname)||'.'||quote_ident(v_row.tablename)||' OWNER TO '||v_owner_role;
         IF p_debug THEN
             RAISE NOTICE 'command: %', v_sql;
         END IF; EXECUTE v_sql;
@@ -95,10 +122,10 @@ IF p_owner THEN
 
     -- Set function ownership
     FOR v_row IN 
-        SELECT n.nspname||'.'||p.proname||'('||pg_catalog.pg_get_function_identity_arguments(p.oid)||')' AS name
+        SELECT n.nspname, p.proname, '('||pg_catalog.pg_get_function_identity_arguments(p.oid)||')' AS arglist
         FROM pg_proc p, pg_namespace n WHERE p.pronamespace = n.oid AND n.nspname NOT IN ('pg_catalog', 'information_schema')
     LOOP
-        v_sql := 'ALTER FUNCTION '||v_row.name||' OWNER TO '||v_owner_role;
+        v_sql := 'ALTER FUNCTION '||quote_ident(v_row.nspname)||'.'||quote_ident(v_row.proname)||arglist||' OWNER TO '||v_owner_role;
         IF p_debug THEN
             RAISE NOTICE 'command: %', v_sql;
         END IF; EXECUTE v_sql;
@@ -110,7 +137,7 @@ IF p_owner THEN
         JOIN pg_namespace n ON c.relnamespace = n.oid 
         WHERE relkind = 'S' and n.nspname not in ('pg_catalog', 'information_schema')
     LOOP
-        v_sql := 'ALTER SEQUENCE '||v_row.name||' OWNER TO '||v_owner_role;
+        v_sql := 'ALTER SEQUENCE '||quote_ident(v_row.name)||' OWNER TO '||v_owner_role;
         IF p_debug THEN
             RAISE NOTICE 'command: %', v_sql;
         END IF; EXECUTE v_sql;
