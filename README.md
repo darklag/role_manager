@@ -14,9 +14,15 @@ CREATE EXTENSION role_manager;
 ## Setup 
 To create the 3 standard roles for a given application run:
 ```
-SELECT create_app_roles('appname');
+SELECT * FROM create_app_roles('appname');
 ```
-This will create: appname_owner, appname_app, appname_readonly
+This will create: appname_owner, appname_app, appname_readonly. 
+This function returns a row set with the new role name and password for each role created.
+There are parameters to control creating each role that default to true: p_app_role, p_owner_role, p_readonly_role.
+By default a 12 character, randomly generated password will be set for each role. 
+You can stop this by setting the p_set_password parameter to false.
+You can control the length of the password with p_password_length.
+Passwords will only contain upper/lower alphanumeric characters.
 
 The set_app_privileges() function sets the default privileges for the above roles as follows
 
