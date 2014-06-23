@@ -1,0 +1,5 @@
+v1.0.1
+-- Fix syntax errors in ownership assignment in set_app_privileges().
+-- Ensure all object names used in generated queries are properly quoted in set_app_privileges().
+
+

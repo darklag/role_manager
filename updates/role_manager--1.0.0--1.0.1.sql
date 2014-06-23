@@ -1,3 +1,6 @@
+-- Fix syntax errors in ownership assignment
+-- Ensure all object names used in generated queries are properly quoted
+
 /*
  * Assign default privileges to application roles.
  * NOTE: This function assumes the application roles will be getting blanket permissions on all objects in the
@@ -16,7 +19,7 @@
 
 */
 
-CREATE FUNCTION set_app_privileges (p_appname text,  p_owner boolean DEFAULT true, p_debug boolean DEFAULT false) RETURNS void
+CREATE OR REPLACE FUNCTION set_app_privileges (p_appname text,  p_owner boolean DEFAULT true, p_debug boolean DEFAULT false) RETURNS void
     LANGUAGE plpgsql
     AS $$
 DECLARE
