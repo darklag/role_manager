@@ -1,3 +1,7 @@
+v1.0.2
+-- set_app_privileges() now sets the default access privileges for the appname_owner role. This allows all objects created by the owner role to automatically set the default permissions for the appname_app and appname_readonly roles.
+
+
 v1.0.1
 -- Fix syntax errors in ownership assignment in set_app_privileges().
 -- Ensure all object names used in generated queries are properly quoted in set_app_privileges().

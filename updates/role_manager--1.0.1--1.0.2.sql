@@ -1,3 +1,5 @@
+-- set_app_privileges() now sets the default access privileges for the appname_owner role. This allows all objects created by the owner role to automatically set the default permissions for the appname_app and appname_readonly roles.
+
 /*
  * Assign default privileges to application roles.
  * Also alters the default privileges of objects created by the owner role so anything it creates gets the privileges listed below.
@@ -18,7 +20,7 @@
  *
 */
 
-CREATE FUNCTION set_app_privileges (p_appname text,  p_owner boolean DEFAULT true, p_debug boolean DEFAULT false) RETURNS void
+CREATE OR REPLACE FUNCTION set_app_privileges (p_appname text,  p_owner boolean DEFAULT true, p_debug boolean DEFAULT false) RETURNS void
     LANGUAGE plpgsql
     AS $$
 DECLARE
