@@ -56,6 +56,7 @@ Application name: example
 Database name: example_us_production
 
 Create the 3 standard roles and generate passwords for them:
+```
 example_us_production=# select * from role_manager.create_app_roles('example');
      rolename     |   password   
 ------------------+--------------
@@ -63,7 +64,7 @@ example_us_production=# select * from role_manager.create_app_roles('example');
  example_readonly | 9pOwCmuzsPRW
  example_owner    | wVh8Kd0Q0azl
 (3 rows)
-
+```
 
 Set the default privileges for the example_owner role and adjust the ownership and privileges of all current objects:
 
