@@ -34,7 +34,8 @@ the latest version of the extension to new databases.
 ## Update
 
 To update the extension, copy the update file(s) to the $SHAREDIR/extension directory.
-For a single database, run the following while connected to that database (with the relevant version number)
+$SHAREDIR can be determined by running: pg_config --sharedir
+For a single database, run the following while connected to that database (with the relevant version number):
 ```
 ALTER EXTENSION role_manager UPDATE TO '1.0.2'
 ```
