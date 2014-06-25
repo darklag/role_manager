@@ -33,7 +33,7 @@ the latest version of the extension to new databases.
 
 ## Update
 
-To update the extension, copy the update file(s) to the $SHAREDIR/extensions directory.
+To update the extension, copy the update file(s) to the $SHAREDIR/extension directory.
 For a single database, run the following while connected to that database (with the relevant version number)
 ```
 ALTER EXTENSION role_manager UPDATE TO '1.0.2'
@@ -113,15 +113,15 @@ example=# \ddp
  * Alters the default privileges of the appname_owner role so that any objects created by it will give the proper privilges to appname_app and appname_readonly.
  * Sets the privileges on ALL objects in the current database for the above roles as follows:
  * Owner role 
-   * all object in database are changed to being owned by this role
+   * All object in database are changed to being owned by this role
  * App role 
    * All schemas are given USAGE
-   * All database tables are given SELECT, INSERT, UPDATE, DELETE, TRUNCATE privileges. 
-   * All functions are given EXECUTE.
-   * All sequences are given USAGE, SELECT, UPDATE
+   * All database tables are given SELECT, INSERT, UPDATE, DELETE, TRUNCATE privileges 
+   * All functions are given EXECUTE privilege
+   * All sequences are given USAGE, SELECT, UPDATE privileges
  * Readonly role 
-   * All schemas are given USAGE
-   * All tables are given SELECT
+   * All schemas are given USAGE privilege
+   * All tables are given SELECT privilege
  * p_owner - By default all objects are set to be owned by the appname_owner role. Setting this to false allows that to be skipped. Useful when deploying roles to an already existing app that you want to avoid breaking current use by other roles.
  * Note that set_app_privileges does NOT revoke any current privileges. It only adds additional grants.
  * Example to set all privileges and ensure ownership is changed.
