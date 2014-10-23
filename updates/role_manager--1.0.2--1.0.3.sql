@@ -1,3 +1,5 @@
+-- Exclude pg_toast table from privilege/ownership chanages.
+
 /*
  * Assign default privileges to application roles.
  * Also alters the default privileges of objects created by the owner role so anything it creates gets the privileges listed below.
@@ -18,7 +20,7 @@
  *
 */
 
-CREATE FUNCTION set_app_privileges (p_appname text,  p_owner boolean DEFAULT true, p_debug boolean DEFAULT false) RETURNS void
+CREATE OR REPLACE FUNCTION set_app_privileges (p_appname text,  p_owner boolean DEFAULT true, p_debug boolean DEFAULT false) RETURNS void
     LANGUAGE plpgsql
     AS $$
 DECLARE

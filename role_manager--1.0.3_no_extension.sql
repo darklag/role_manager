@@ -1,4 +1,127 @@
 /*
+ * Create the 3 required roles for use in database applications
+ * p_appname - Required. Application namd that will be used as basename for roles
+ * p_app_role - set whether to create an application read/write role (appname_app). Default true.
+ * p_readonly_role - set whether to create a readonly role (appname_readonly). Default true.
+ * p_owner_role - set whether to create an owner role (appname_owner). Default true.
+ * p_set_passwords - set passwords for the roles that are created. Default true.
+ * p_password_length - character length of password. Default 12.
+ */
+
+SET search_path = role_manager;
+
+CREATE OR REPLACE FUNCTION create_app_roles(
+    p_appname text
+    , p_app_role boolean DEFAULT true
+    , p_readonly_role boolean DEFAULT true
+    , p_owner_role boolean DEFAULT true
+    , p_set_password boolean DEFAULT true
+    , p_password_length int DEFAULT 12
+    , out rolename text
+    , out password text)
+RETURNS SETOF record
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+
+v_sql               text;
+
+BEGIN
+
+IF p_app_role THEN
+    rolename := p_appname || '_app';
+    v_sql := 'CREATE ROLE '||quote_ident(rolename)||' WITH LOGIN';
+    IF p_set_password THEN
+        password := role_manager.generate_password(p_password_length);
+        v_sql := v_sql || ' PASSWORD '||quote_literal(password);
+    ELSE
+        password := '';
+    END IF;
+    EXECUTE v_sql;
+    RETURN NEXT;
+END IF;
+
+IF p_readonly_role THEN
+    rolename := p_appname || '_readonly';
+    v_sql := 'CREATE ROLE '||quote_ident(rolename)||' WITH LOGIN';
+    IF p_set_password THEN
+        password := role_manager.generate_password(p_password_length);
+        v_sql := v_sql || ' PASSWORD '||quote_literal(password);
+    ELSE
+        password := '';
+    END IF;
+    EXECUTE v_sql;
+    RETURN NEXT;
+END IF;
+
+IF p_owner_role THEN
+    rolename := p_appname || '_owner';
+    v_sql := 'CREATE ROLE '||quote_ident(rolename)||' WITH LOGIN';
+    IF p_set_password THEN
+        password := role_manager.generate_password(p_password_length);
+        v_sql := v_sql || ' PASSWORD '||quote_literal(password);
+    ELSE
+        password := '';
+    END IF;
+    EXECUTE v_sql;
+    RETURN NEXT;
+END IF;
+
+RETURN;
+
+END
+$$;
+/*
+ * Drop the 3 roles that were created by create_app_roles for use in database applications
+ * p_appname - Required. Application name that was used as the basename for the roles.
+ * p_app_role - set whether to drop the application read/write role (appname_app). Default true.
+ * p_readonly_role - set whether to drop the readonly role (appname_readonly). Default true.
+ * p_owner_role - set whether to drop the owner role (appname_owner). Default true.
+ */
+CREATE OR REPLACE FUNCTION drop_app_roles(p_appname text, p_app_role boolean DEFAULT true, p_readonly_role boolean DEFAULT true, p_owner_role boolean DEFAULT true) RETURNS text
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+
+v_app_role          text;
+v_owner_role        text;
+v_readonly_role     text;
+v_return            text;
+
+BEGIN
+
+v_owner_role := p_appname || '_owner';
+v_app_role := p_appname || '_app';
+v_readonly_role := p_appname || '_readonly';
+v_return := 'The following roles have been dropped:';
+
+IF p_app_role THEN
+    EXECUTE 'DROP ROLE IF EXISTS '||v_app_role;
+    v_return := v_return || ' ' ||v_app_role;
+END IF;
+
+IF p_readonly_role THEN
+    EXECUTE 'DROP ROLE IF EXISTS '||v_readonly_role;
+    v_return := v_return || ' ' ||v_readonly_role;
+END IF;
+
+IF p_owner_role THEN
+    EXECUTE 'DROP ROLE IF EXISTS '||v_owner_role;
+    v_return := v_return || ' ' ||v_owner_role;
+END IF;
+
+RETURN v_return;
+
+END
+$$;
+CREATE OR REPLACE FUNCTION generate_password(int) RETURNS text
+    LANGUAGE sql
+    AS $$
+    SELECT ARRAY_TO_STRING(ARRAY_AGG(SUBSTR(A.chars, (RANDOM()*1000)::int%(LENGTH(A.chars))+1, 1)), '')
+    FROM (SELECT 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'::varchar AS chars) A,
+    (SELECT generate_series(1, $1, 1) AS line) B;
+$$;
+/*
  * Assign default privileges to application roles.
  * Also alters the default privileges of objects created by the owner role so anything it creates gets the privileges listed below.
  *
@@ -18,7 +141,7 @@
  *
 */
 
-CREATE FUNCTION set_app_privileges (p_appname text,  p_owner boolean DEFAULT true, p_debug boolean DEFAULT false) RETURNS void
+CREATE OR REPLACE FUNCTION set_app_privileges (p_appname text,  p_owner boolean DEFAULT true, p_debug boolean DEFAULT false) RETURNS void
     LANGUAGE plpgsql
     AS $$
 DECLARE
