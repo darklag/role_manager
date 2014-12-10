@@ -1,3 +1,12 @@
+v1.0.4
+-- Handle changing view ownership
+-- Handle changing aggregate ownership
+
+
+v1.0.3
+-- Exclude pg_toast table from privilege/ownership chanages.
+
+
 v1.0.2
 -- set_app_privileges() now sets the default access privileges for the appname_owner role. This allows all objects created by the owner role to automatically set the default permissions for the appname_app and appname_readonly roles.
 

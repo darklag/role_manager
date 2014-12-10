@@ -1,3 +1,7 @@
+CREATE SCHEMA IF NOT EXISTS role_manager;
+
+SET search_path = role_manager;
+
 /*
  * Create the 3 required roles for use in database applications
  * p_appname - Required. Application namd that will be used as basename for roles
@@ -7,10 +11,7 @@
  * p_set_passwords - set passwords for the roles that are created. Default true.
  * p_password_length - character length of password. Default 12.
  */
-
-SET search_path = role_manager;
-
-CREATE OR REPLACE FUNCTION create_app_roles(
+CREATE FUNCTION create_app_roles(
     p_appname text
     , p_app_role boolean DEFAULT true
     , p_readonly_role boolean DEFAULT true
@@ -78,7 +79,7 @@ $$;
  * p_readonly_role - set whether to drop the readonly role (appname_readonly). Default true.
  * p_owner_role - set whether to drop the owner role (appname_owner). Default true.
  */
-CREATE OR REPLACE FUNCTION drop_app_roles(p_appname text, p_app_role boolean DEFAULT true, p_readonly_role boolean DEFAULT true, p_owner_role boolean DEFAULT true) RETURNS text
+CREATE FUNCTION drop_app_roles(p_appname text, p_app_role boolean DEFAULT true, p_readonly_role boolean DEFAULT true, p_owner_role boolean DEFAULT true) RETURNS text
     LANGUAGE plpgsql
     AS $$
 DECLARE
@@ -114,13 +115,16 @@ RETURN v_return;
 
 END
 $$;
-CREATE OR REPLACE FUNCTION generate_password(int) RETURNS text
+CREATE FUNCTION generate_password(int) RETURNS text
     LANGUAGE sql
     AS $$
     SELECT ARRAY_TO_STRING(ARRAY_AGG(SUBSTR(A.chars, (RANDOM()*1000)::int%(LENGTH(A.chars))+1, 1)), '')
     FROM (SELECT 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'::varchar AS chars) A,
     (SELECT generate_series(1, $1, 1) AS line) B;
 $$;
+-- Handle changing view ownership
+-- Handle changing aggregate ownership
+
 /*
  * Assign default privileges to application roles.
  * Also alters the default privileges of objects created by the owner role so anything it creates gets the privileges listed below.
@@ -141,7 +145,7 @@ $$;
  *
 */
 
-CREATE OR REPLACE FUNCTION set_app_privileges (p_appname text,  p_owner boolean DEFAULT true, p_debug boolean DEFAULT false) RETURNS void
+CREATE FUNCTION set_app_privileges (p_appname text,  p_owner boolean DEFAULT true, p_debug boolean DEFAULT false) RETURNS void
     LANGUAGE plpgsql
     AS $$
 DECLARE
@@ -278,10 +282,13 @@ IF p_owner THEN
 
     -- Set function ownership
     FOR v_row IN 
-        SELECT n.nspname, p.proname, '('||pg_catalog.pg_get_function_identity_arguments(p.oid)||')' AS arglist
+        SELECT n.nspname, p.proname, '('||pg_catalog.pg_get_function_identity_arguments(p.oid)||')' AS arglist,
+            CASE WHEN p.proisagg THEN 'AGGREGATE'
+                ELSE 'FUNCTION'
+            END AS altertype
         FROM pg_proc p, pg_namespace n WHERE p.pronamespace = n.oid AND n.nspname NOT IN ('pg_catalog', 'information_schema')
     LOOP
-        v_sql := 'ALTER FUNCTION '||quote_ident(v_row.nspname)||'.'||quote_ident(v_row.proname)||v_row.arglist||' OWNER TO '||quote_ident(v_owner_role);
+        v_sql := 'ALTER '||v_row.altertype||' '||quote_ident(v_row.nspname)||'.'||quote_ident(v_row.proname)||v_row.arglist||' OWNER TO '||quote_ident(v_owner_role);
         IF p_debug THEN
             RAISE NOTICE 'command: %', v_sql;
         END IF; EXECUTE v_sql;
@@ -299,7 +306,17 @@ IF p_owner THEN
         END IF; EXECUTE v_sql;
     END LOOP;
 
-
+    -- Set view ownership
+    FOR v_row IN
+        SELECT n.nspname, c.relname FROM pg_class c
+        JOIN pg_namespace n ON c.relnamespace = n.oid
+        WHERE relkind = 'v' and n.nspname not in ('pg_catalog', 'information_schema')
+    LOOP
+        v_sql := 'ALTER VIEW '||quote_ident(v_row.nspname)||'.'||quote_ident(v_row.relname)||' OWNER TO '||quote_ident(v_owner_role);
+        IF p_debug THEN
+            RAISE NOTICE 'command: %', v_sql;
+        END IF; EXECUTE v_sql;
+    END LOOP;
     -- TODO Deal with other objects that need ownership handled
 
 END IF;

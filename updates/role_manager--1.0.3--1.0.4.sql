@@ -1,5 +1,3 @@
--- Handle changing view ownership
--- Handle changing aggregate ownership
 
 /*
  * Assign default privileges to application roles.
@@ -21,7 +19,7 @@
  *
 */
 
-CREATE FUNCTION set_app_privileges (p_appname text,  p_owner boolean DEFAULT true, p_debug boolean DEFAULT false) RETURNS void
+CREATE OR REPLACE FUNCTION set_app_privileges (p_appname text,  p_owner boolean DEFAULT true, p_debug boolean DEFAULT false) RETURNS void
     LANGUAGE plpgsql
     AS $$
 DECLARE
