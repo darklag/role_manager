@@ -122,9 +122,6 @@ CREATE FUNCTION generate_password(int) RETURNS text
     FROM (SELECT 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'::varchar AS chars) A,
     (SELECT generate_series(1, $1, 1) AS line) B;
 $$;
--- Handle changing view ownership
--- Handle changing aggregate ownership
-
 /*
  * Assign default privileges to application roles.
  * Also alters the default privileges of objects created by the owner role so anything it creates gets the privileges listed below.
@@ -143,6 +140,7 @@ $$;
  * Readonly role - All schemas are given USAGE
  *               - All tables are given SELECT
  *
+ * There was an exception added for the dblink functions. Some of these must be owned by a superuser to work properly.
 */
 
 CREATE FUNCTION set_app_privileges (p_appname text,  p_owner boolean DEFAULT true, p_debug boolean DEFAULT false) RETURNS void
@@ -158,6 +156,7 @@ v_owner_role        text;
 v_readonly_exists   int;
 v_readonly_role     text;
 v_row               record;
+v_row_skip          record;
 v_sql               text;
 
 BEGIN
@@ -281,6 +280,7 @@ IF p_owner THEN
     END LOOP;
 
     -- Set function ownership
+    <<main_function_loop>>
     FOR v_row IN 
         SELECT n.nspname, p.proname, '('||pg_catalog.pg_get_function_identity_arguments(p.oid)||')' AS arglist,
             CASE WHEN p.proisagg THEN 'AGGREGATE'
@@ -288,6 +288,22 @@ IF p_owner THEN
             END AS altertype
         FROM pg_proc p, pg_namespace n WHERE p.pronamespace = n.oid AND n.nspname NOT IN ('pg_catalog', 'information_schema')
     LOOP
+        -- Check if it is a function in dblink. Skip if so.
+        FOR v_row_skip IN 
+            SELECT f.proname, '('||pg_catalog.pg_get_function_identity_arguments(f.oid)||')' as arglist
+            FROM pg_catalog.pg_depend d
+            JOIN pg_catalog.pg_extension p ON d.refobjid = p.oid
+            JOIN pg_catalog.pg_proc f ON d.objid = f.oid
+            WHERE extname = 'dblink'
+        LOOP
+            --TODO REMOVE 
+            RAISE NOTICE 'v_row_skip.proname: %, v_row.proname: %, v_row_skip.arglist: %, v_row.arglist: %', v_row_skip.proname, v_row.proname, v_row_skip.arglist, v_row.arglist;
+            IF v_row_skip.proname = v_row.proname AND v_row_skip.arglist = v_row.arglist THEN
+                CONTINUE main_function_loop;
+            END IF;
+        END LOOP;
+
+        -- If no matches, change ownership
         v_sql := 'ALTER '||v_row.altertype||' '||quote_ident(v_row.nspname)||'.'||quote_ident(v_row.proname)||v_row.arglist||' OWNER TO '||quote_ident(v_owner_role);
         IF p_debug THEN
             RAISE NOTICE 'command: %', v_sql;

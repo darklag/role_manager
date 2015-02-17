@@ -1,3 +1,7 @@
+v1.0.5
+-- Found that some dblink functions must be owned by a superuser to work properly (dblink_connect_u). Made it so ownership of any functions in dblink will never have ownership changed.
+
+
 v1.0.4
 -- Handle changing view ownership
 -- Handle changing aggregate ownership
