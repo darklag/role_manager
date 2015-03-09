@@ -143,7 +143,7 @@ $$;
  * There was an exception added for the dblink functions. Some of these must be owned by a superuser to work properly.
 */
 
-CREATE FUNCTION set_app_privileges (p_appname text,  p_owner boolean DEFAULT true, p_debug boolean DEFAULT false) RETURNS void
+CREATE FUNCTION set_app_privileges (p_appname text,  p_owner boolean DEFAULT false, p_debug boolean DEFAULT false) RETURNS void
     LANGUAGE plpgsql
     AS $$
 DECLARE
@@ -296,8 +296,6 @@ IF p_owner THEN
             JOIN pg_catalog.pg_proc f ON d.objid = f.oid
             WHERE extname = 'dblink'
         LOOP
-            --TODO REMOVE 
-            RAISE NOTICE 'v_row_skip.proname: %, v_row.proname: %, v_row_skip.arglist: %, v_row.arglist: %', v_row_skip.proname, v_row.proname, v_row_skip.arglist, v_row.arglist;
             IF v_row_skip.proname = v_row.proname AND v_row_skip.arglist = v_row.arglist THEN
                 CONTINUE main_function_loop;
             END IF;
