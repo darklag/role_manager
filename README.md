@@ -109,7 +109,7 @@ example=# \ddp
  * Returns a row set with the new role name and password for each role created.
 
 
-*set_app_privileges (p_appname text,  p_owner boolean DEFAULT true, p_debug boolean DEFAULT false) RETURNS void*
+*set_app_privileges (p_appname text,  p_owner boolean DEFAULT false, p_debug boolean DEFAULT false) RETURNS void*
  * Unlike create_app_roles(), this function must be run on the database the roles will be using.
  * Alters the default privileges of the appname_owner role so that any objects created by it will give the proper privilges to appname_app and appname_readonly.
  * Sets the privileges on ALL objects in the current database for the above roles as follows:
@@ -123,9 +123,8 @@ example=# \ddp
  * Readonly role 
    * All schemas are given USAGE privilege
    * All tables are given SELECT privilege
- * p_owner - By default all objects are set to be owned by the appname_owner role. Setting this to false allows that to be skipped. Useful when deploying roles to an already existing app that you want to avoid breaking current use by other roles.
+ * p_owner - Setting this to true actually changes the ownership of all objects in the database, and the database itself, to the owner role. This can be distruptive on large, busy databases so the default is false.
  * Note that set_app_privileges does NOT revoke any current privileges. It only adds additional grants.
- * Example to set all privileges and ensure ownership is changed.
 
 
 *drop_app_roles(p_appname text, p_app_role boolean DEFAULT true, p_readonly_role boolean DEFAULT true, p_owner_role boolean DEFAULT true) RETURNS text*
