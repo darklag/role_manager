@@ -139,6 +139,7 @@ $$;
  *          - All sequences are given USAGE, SELECT, UPDATE
  * Readonly role - All schemas are given USAGE
  *               - All tables are given SELECT
+ *               - All sequences are given SELECT
  *
  * There was an exception added for the dblink functions. Some of these must be owned by a superuser to work properly.
 */
@@ -229,6 +230,11 @@ LOOP
         END IF;
         EXECUTE v_sql;
 
+        v_sql := 'ALTER DEFAULT PRIVILEGES FOR ROLE '||quote_ident(v_owner_role)||' GRANT SELECT ON SEQUENCES TO '||quote_ident(v_readonly_role);
+        IF p_debug THEN
+            RAISE NOTICE 'command: %', v_sql;
+        END IF;
+
         v_sql := 'GRANT USAGE ON SCHEMA '||quote_ident(v_row.nspname)||' TO '||quote_ident(v_readonly_role);
         IF p_debug THEN
             RAISE NOTICE 'command: %', v_sql;
@@ -236,6 +242,12 @@ LOOP
         EXECUTE v_sql;
 
         v_sql := 'GRANT SELECT ON ALL TABLES IN SCHEMA '||quote_ident(v_row.nspname)||' TO '||quote_ident(v_readonly_role);
+        IF p_debug THEN
+            RAISE NOTICE 'command: %', v_sql;
+        END IF;
+        EXECUTE v_sql;
+
+        v_sql := 'GRANT SELECT ON ALL SEQUENCES IN SCHEMA '||quote_ident(v_row.nspname)||' TO '||quote_ident(v_readonly_role);
         IF p_debug THEN
             RAISE NOTICE 'command: %', v_sql;
         END IF;
