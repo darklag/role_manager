@@ -1,3 +1,7 @@
+v1.0.7
+-- All sequences are given SELECT privilege for the read only role.
+
+
 v1.0.6
 -- Change default for p_owner paramter in set_app_privileges() to be false instead of true. Changing ownership is actually a rare occurance if things are working properly and is very intrusive on larger, busy databases.
 

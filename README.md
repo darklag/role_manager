@@ -92,6 +92,7 @@ example=# \ddp
                |        |          | example_owner=X/example_owner
  example_owner |        | sequence | example_app=rwU/example_owner      +
                |        |          | example_owner=rwU/example_owner
+               |        |          | example_read=r/example_owner
  example_owner |        | table    | example_app=arwdD/example_owner    +
                |        |          | example_readonly=r/example_owner   +
                |        |          | example_owner=arwdDxt/example_owner
@@ -123,6 +124,7 @@ example=# \ddp
  * Readonly role 
    * All schemas are given USAGE privilege
    * All tables are given SELECT privilege
+   * All sequences are given SELECT privileges
  * p_owner - Setting this to true actually changes the ownership of all objects in the database, and the database itself, to the owner role. This can be distruptive on large, busy databases so the default is false.
  * Note that set_app_privileges does NOT revoke any current privileges. It only adds additional grants.
 

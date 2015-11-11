@@ -1,3 +1,5 @@
+-- All sequences are given SELECT privilege for the read only role.
+
 /*
  * Assign default privileges to application roles.
  * Also alters the default privileges of objects created by the owner role so anything it creates gets the privileges listed below.
@@ -20,7 +22,7 @@
  * There was an exception added for the dblink functions. Some of these must be owned by a superuser to work properly.
 */
 
-CREATE FUNCTION set_app_privileges (p_appname text,  p_owner boolean DEFAULT false, p_debug boolean DEFAULT false) RETURNS void
+CREATE OR REPLACE FUNCTION set_app_privileges (p_appname text,  p_owner boolean DEFAULT false, p_debug boolean DEFAULT false) RETURNS void
     LANGUAGE plpgsql
     AS $$
 DECLARE
