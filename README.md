@@ -70,7 +70,7 @@ example_us_production=# select * from role_manager.create_app_roles('example');
 Set the default privileges for the example_owner role and adjust the ownership and privileges of all current objects:
 
 ```
-example_us_production=# select role_manager.set_app_privileges('example');
+example_us_production=# select role_manager.set_app_privileges('example', p_owner := true);
  set_app_privileges 
 --------------------
  
